@@ -1,0 +1,10 @@
+{
+  "name": "URINSIGHT Figma Editable Importer v1",
+  "id": "urinsight-figma-editable-importer-v1",
+  "api": "1.0.0",
+  "editorType": ["figma"],
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "documentAccess": "dynamic-page",
+  "networkAccess": { "allowedDomains": ["none"] }
+}

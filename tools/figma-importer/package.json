@@ -1,0 +1,16 @@
+{
+  "name": "@urinsight/figma-importer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "test:ui": "tsx --test tests/ui.test.ts"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "1.117.0",
+    "esbuild": "0.28.2"
+  }
+}
