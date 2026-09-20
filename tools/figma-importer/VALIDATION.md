@@ -51,8 +51,34 @@ UI screenshot은 테스트 실행 시 `artifacts/ui-imported.png`에 생성됩�
 
 ## 남은 실제 Figma 검증과 한계
 
-Computer Use의 설치 앱 목록, 실행 프로세스와 Figma 기본 설치 경로에서 Figma Desktop을 찾지 못했습니다. 따라서 local plugin 등록, 실제 Pretendard font load, canvas paint, 텍스트 편집·highlight resize·이미지 crop 핸들 조작, PNG export와 시각 비교는 수행하지 못했습니다. [README의 실제 Figma checklist](README.md#실제-figma-desktop-acceptance-checklist)에서 확인해야 합니다. 자동 검증 통과를 실제 Figma acceptance 통과로 표시하지 않습니다.
+초기 v1 구현 시점에는 Computer Use의 설치 앱 목록, 실행 프로세스와 Figma 기본 설치 경로에서 Figma Desktop을 찾지 못했습니다. 당시 local plugin 등록, 실제 Pretendard font load, canvas paint, 텍스트 편집·highlight resize·이미지 crop 핸들 조작, PNG export와 시각 비교는 수행하지 못했습니다. 아래 runtime hotfix에서 UI 실행을 추가 확인했으며, 나머지는 [README의 실제 Figma checklist](README.md#실제-figma-desktop-acceptance-checklist)에 남아 있습니다. 자동 검증 통과를 전체 실제 Figma acceptance 통과로 표시하지 않습니다.
 
 Highlight는 Figma text advance와 font size 기반의 편집 가능한 초기 근사치입니다. 브라우저 renderer의 glyph ink bounds 및 keep-all wrapping과 픽셀 단위 일치를 보장하지 않습니다. 텍스트 수정 후 배경 Rectangle/형제 줄의 위치를 자동 동기화하지 않습니다. 길이가 넘치는 원고는 폰트/anchor를 자동 변경하지 않고 경고와 함께 import합니다.
 
 개발 구현/build/자동 검증은 완료했지만 실제 Figma acceptance가 남아 있으므로 전체 acceptance 기준 상태는 **미완료**입니다.
+
+## Actual Figma Runtime Hotfix — 2026-09-20
+
+시작 commit: `71301a27ac46283312f8ca27cafcf1c6e6088ca7`. 같은 feature branch에서 MAIN runtime 호환성만 수정했습니다.
+
+### 원인과 수정
+
+- 기존 MAIN `dist/code.js`의 17063행에 Zod 4.6.5의 `v4/core/json-schema-generator.js`에서 온 주석이 남아 있었습니다. 주석의 ``inline `import()` of an ESM path``가 raw-source import-expression 검사의 거부 조건에 해당했습니다. 실제 dynamic import, import.meta, static import/export statement는 없었습니다.
+- 기존 `legalComments: 'none'`만으로는 일반 주석이 제거되지 않습니다. ES2015 target만 적용한 별도 메모리 build에서도 `import()` 주석 1개가 남는 것을 확인했습니다. MAIN에만 `minifyWhitespace: true`를 적용해 주석을 제거했습니다. 단순 정규식 문자열 치환으로 dependency 코드를 수정하지 않습니다.
+- MAIN target은 ES2017 → ES2015, UI는 ES2017 유지입니다. MAIN/UI build options를 분리했습니다.
+- Zod util/doc/compile에는 `const F = Function; new F(...)` 형태의 capability probe 및 JIT 경로도 있었습니다. MAIN 전용 esbuild inject가 native 코드 생성자 참조를 항상 throw하는 함수로 바꿉니다. Zod의 기존 capability probe는 실패를 처리하고 원래의 interpreted validation 경로를 사용합니다. Production schema/dependency 원본을 패치하지 않습니다.
+- 기존 VM 검사는 코드 생성 실패를 Zod가 내부에서 처리하므로 통과할 수 있었습니다. 새 검사는 원시 문자열과 ES2015 AST를 모두 검사하고, native Function 접근 횟수가 0임을 확인합니다. 실제 fixture의 성공뿐 아니라 잘못된 highlight의 schema 거절도 확인합니다.
+
+주석까지 포함하는 source scan의 배경: [Endo/SES 공식 import-expression 검사](https://github.com/endojs/endo/security/advisories/GHSA-9c4h-3f7h-322r). Figma 내부 구현 전체를 재현하는 테스트는 아니며, 이번 오류에 해당하는 거부 조건을 보수적으로 검사합니다.
+
+### 검증
+
+- MAIN build audit: Acorn `ecmaVersion: 2015`, `sourceType: script` PASS.
+- import expressions / import.meta / module declarations / dynamic code generation references / comments: 모두 **0**.
+- Regression guard: 원본 Zod 주석, dynamic import, static import/export, import.meta, async/await, object spread, optional chaining, eval, Function alias를 거절.
+- Plugin typecheck/build PASS; plugin tests **15/15 PASS**, 실제 package 테스트 포함, skip 0.
+- Root `pnpm typecheck` PASS; `pnpm test` **62/62 PASS**.
+- 실제 Figma Desktop `126.9.10`의 기존 등록 plugin을 실행해 **UI 표시 및 Ready 상태 확인**. 기존 `possible import expression rejected` 오류 없이 MAIN이 실행되어 showUI까지 도달했습니다. 이번 hotfix에서 캔버스 import/디자인 편집성 전체 acceptance를 다시 수행한 것은 아닙니다.
+- UI bundle 및 `src/`의 layer/schema/token 코드는 그대로입니다. Root package/lock, Daily Runner, renderer, production schema 변경 없음.
+
+`dist/`는 기존 정책대로 Git 제외 생성물입니다. 다른 checkout에서는 plugin 의존성 설치 후 build가 필요합니다.

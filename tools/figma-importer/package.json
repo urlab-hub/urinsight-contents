@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@figma/plugin-typings": "1.117.0",
+    "acorn": "8.15.0",
     "esbuild": "0.28.2"
   }
 }

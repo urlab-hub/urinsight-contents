@@ -20,7 +20,9 @@ npm --prefix tools/figma-importer run typecheck
 npm --prefix tools/figma-importer run build
 ```
 
-기존 root 의존성을 설치한 상태라면 첫 install은 생략합니다. `npm ci`는 plugin의 별도 `package-lock.json`을 사용합니다. root package.json/pnpm lock/workspace 설정은 변경하지 않습니다. TypeScript, tsx, zod는 설치된 root 의존성을 재사용하며 plugin 개발 의존성은 공식 Figma typings와 esbuild뿐입니다. `--ignore-scripts` 상태에서도 esbuild의 플랫폼별 선택 의존성으로 build됩니다. 설치 시 optional dependencies를 제외하지 마세요.
+기존 root 의존성을 설치한 상태라면 첫 install은 생략합니다. `npm ci`는 plugin의 별도 `package-lock.json`을 사용합니다. root package.json/pnpm lock/workspace 설정은 변경하지 않습니다. TypeScript, tsx, zod는 설치된 root 의존성을 재사용하며 plugin 개발 의존성은 공식 Figma typings, esbuild, MAIN 구문 검사용 Acorn입니다. `--ignore-scripts` 상태에서도 esbuild의 플랫폼별 선택 의존성으로 build됩니다. 설치 시 optional dependencies를 제외하지 마세요.
+
+MAIN은 ES2015 IIFE로, UI는 기존 ES2017로 build합니다. MAIN에서는 주석을 제거하고 dependency의 코드 생성 기능을 차단합니다. build 중 raw-source 검사와 ES2015 parser 검사를 통과해야 code.js를 저장합니다. `possible import expression rejected` 오류가 있던 이전 build를 사용했다면 의존성 설치/build 후 Figma에서 plugin을 종료하고 다시 실행하세요.
 
 build 결과:
 
@@ -143,7 +145,7 @@ Daily의 `designTokens(true)`와 coverOverlay, 기존 contentSchema를 읽기 �
 
 Plugin 실행 코드는 외부 API/Figma MCP/ChatGPT API, OS 경로 접근, 파일 쓰기, 게시, JSON sync를 사용하지 않습니다. manifest의 networkAccess는 `none`입니다. 최초 개발 의존성 설치에는 네트워크가 필요하며, Figma 문서 자체의 저장/동기화는 Figma 앱 동작을 따릅니다.
 
-이 개발 환경에는 Figma Desktop이 확인되지 않아 **실제 Figma canvas·폰트 가용성·마우스 편집성은 미검증**입니다. 아래 acceptance checklist가 남아 있습니다. mock 테스트 성공을 실제 Figma 시각 검증으로 해석하지 마세요.
+초기 구현에서는 Figma Desktop을 확인하지 못했습니다. 이후 runtime hotfix 검증에서는 **실제 Figma Desktop에서 plugin UI가 parser error 없이 열리는 것을 확인**했습니다. 실제 canvas·폰트 가용성·마우스 편집성 검증은 아래 acceptance checklist에 남아 있습니다. mock 테스트 성공을 실제 Figma 시각 검증으로 해석하지 마세요.
 
 ## 9. 개발 검증
 
@@ -174,7 +176,7 @@ Figma API contract mock은 노드 구조·속성·폰트 오류·재import·실�
 
 ### 실제 Figma Desktop acceptance checklist
 
-- [ ] local manifest 등록 및 plugin 실행
+- [x] local manifest 등록 및 plugin UI 실행 (runtime hotfix에서 실제 Desktop 확인)
 - [ ] 실제 사업 package로 8개 frame, 1080×1350, COVER/BODY 5/SUMMARY/INSIGHT 순서 확인
 - [ ] category #3B5BDB, Pretendard Regular/Bold, Spec 1.10 typography/anchors 확인
 - [ ] cover/insight 이미지 표시, 각각 45%/65% overlay 확인
