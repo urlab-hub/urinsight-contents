@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { parseDailyArgs, runDaily } from '../daily/runner.js';
-import { openWindowsTarget } from './windows-open.js';
+import { openWindowsTarget, validateFigmaUrl } from './windows-open.js';
 import type { OpenTarget } from './windows-open.js';
 
 interface HandoffOptions {
@@ -27,14 +27,28 @@ export async function runDailyFigma(options: HandoffOptions, dependencies: Parti
   const open = dependencies.open ?? openWindowsTarget;
   const targets: OpenTarget[] = [
     { kind: 'explorer', target: processed },
-    { kind: 'figma', target: options.figmaFileUrl?.trim() || 'figma://' },
+    { kind: 'figma-app' },
   ];
   for (const target of targets) {
-    try { await open(target); }
+    try {
+      await open(target);
+      if (target.kind === 'figma-app') {
+        log('Figma Desktop opened.\nOpen your URINSIGHT file in the desktop app, then run the importer.');
+        const preferredFile = options.figmaFileUrl?.trim();
+        if (preferredFile) {
+          try {
+            validateFigmaUrl(preferredFile);
+            warn('! Preferred Figma file 자동 열기는 지원되는 Desktop 전용 방법을 확인하지 못해 생략했습니다. Desktop에서 파일을 직접 열어 주세요. Browser fallback은 사용하지 않습니다.');
+          } catch (error) {
+            warn(`! ${error instanceof Error ? error.message : String(error)}. Desktop은 유지되며 browser는 열지 않습니다.`);
+          }
+        }
+      }
+    }
     catch (error) {
       warn(`! ${target.kind === 'explorer' ? 'Explorer' : 'Figma'} 열기 실패: ${error instanceof Error ? error.message : String(error)}. Daily 완료 결과는 유지됩니다.`);
     }
   }
-  log(`\nFIGMA HANDOFF\nPackage folder: ${processed}\nFigma에서 URINSIGHT Importer를 직접 실행하고 필요한 package만 선택해 주세요.`);
+  log(`\nFIGMA HANDOFF\nPackage folder: ${processed}\nFigma Desktop에서 로컬 development plugin인 URINSIGHT Importer를 직접 실행하고 필요한 package만 선택해 주세요.`);
   return result;
 }

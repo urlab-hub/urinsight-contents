@@ -21,7 +21,7 @@ pnpm test
 기본은 Playwright의 headless shell입니다. Windows 브라우저 런타임 설치 오류가 있는 환경에서는 설치된 Chrome/Edge를 명시적으로 선택할 수 있습니다. PowerShell: `$env:URINSIGHT_BROWSER_CHANNEL='chrome'` 또는 `'msedge'`. `validation.json`에 실제 채널과 버전이 기록됩니다. 환경변수를 해제하면 기본 엔진으로 돌아갑니다.
 샘플 cover는 단색 개발용 placeholder입니다. `cover.image`를 넣으면 JSON 파일 기준 상대경로 또는 절대경로의 로컬 이미지를 사용합니다. 없는 파일을 지정하면 실패합니다.
 
-Windows에서 Daily 완료 후 수동 Figma 편집으로 이어가려면 repository 루트에서 `npm.cmd run daily:figma`를 실행합니다. 기존 Daily가 전체 성공하면 해당 실행 날짜의 processed 폴더를 한 번 열고 Figma Desktop 또는 `URINSIGHT_FIGMA_FILE_URL`의 파일을 엽니다. Plugin 실행과 Import는 사용자가 직접 합니다. 설정과 오류 처리: [Daily → Figma handoff](docs/DAILY_FIGMA_HANDOFF.md).
+Windows에서 Daily 완료 후 수동 Figma 편집으로 이어가려면 repository 루트에서 `npm.cmd run daily:figma`를 실행합니다. 기존 Daily가 전체 성공하면 해당 실행 날짜의 processed 폴더를 한 번 열고 설치된 Figma Desktop을 직접 실행합니다. 브라우저는 자동으로 열지 않습니다. `URINSIGHT_FIGMA_FILE_URL`은 Desktop에서 열고 싶은 preferred file이며 파일 자동 열기는 best-effort입니다. 현재는 Desktop에서 URINSIGHT 파일을 직접 열고 로컬 development plugin인 Importer를 실행합니다. 설정과 오류 처리: [Daily → Figma handoff](docs/DAILY_FIGMA_HANDOFF.md).
 
 ## 구조
 

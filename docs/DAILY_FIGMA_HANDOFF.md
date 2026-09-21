@@ -11,8 +11,8 @@ npm.cmd run daily:figma
 1. 기존 `parseDailyArgs` / `runDaily`를 그대로 호출합니다.
 2. 기존 Daily Runner가 PNG/contact-sheet를 생성하고 성공 package를 processed로 이동합니다.
 3. 전체 성공한 실행에서 `processed/<runDaily가 반환한 날짜>` 폴더를 Explorer에 한 번 엽니다. 여러 package가 성공해도 날짜 폴더 하나만 엽니다.
-4. 설정된 Figma 파일 URL을 열거나, 설정이 없으면 Figma Desktop 실행을 시도합니다.
-5. 사용자가 Figma Importer를 직접 실행하고 수정할 package의 파일을 선택한 뒤 Import를 누릅니다.
+4. Figma Desktop 설치를 탐지하고 `Figma.exe`를 직접 실행합니다. 설정된 HTTPS URL로 브라우저를 자동 실행하지 않습니다.
+5. 사용자가 Desktop에서 URINSIGHT 파일을 열고 로컬 development plugin인 Figma Importer를 직접 실행합니다. 수정할 package의 파일을 선택한 뒤 Import를 누릅니다.
 
 Plugin 실행, Import 버튼 클릭, MCP/API, 파일 자동 업로드, Figma → JSON sync는 수행하지 않습니다. Daily Runner는 빠른 자동 완성본을 만들고 Figma Importer는 필요한 콘텐츠의 수동 편집 공간을 제공합니다.
 
@@ -39,7 +39,7 @@ npm.cmd run daily:figma -- --only ai-workflow-redesign
 
 ## URINSIGHT_FIGMA_FILE_URL 설정
 
-설정은 사용자별 환경변수입니다. URL을 repository 코드나 공용 설정 파일에 저장하지 않습니다. `.env` 파일을 자동으로 읽는 기능은 추가하지 않았습니다.
+설정은 사용자별 환경변수이며 **Desktop에서 열고 싶은 preferred Figma file**을 뜻합니다. URL을 repository 코드나 공용 설정 파일에 저장하지 않습니다. `.env` 파일을 자동으로 읽는 기능은 추가하지 않았습니다.
 
 현재 PowerShell 세션에서 사용할 때 (`FILE_KEY`를 실제 Figma 파일 키로 교체):
 
@@ -63,22 +63,31 @@ Remove-Item Env:URINSIGHT_FIGMA_FILE_URL -ErrorAction SilentlyContinue
 [Environment]::SetEnvironmentVariable('URINSIGHT_FIGMA_FILE_URL', $null, 'User')
 ```
 
-설정이 없거나 공백이면 Windows에 등록된 `figma://` handler로 Desktop 실행을 시도합니다. 해당 handler가 없으면 경고합니다. 파일 링크는 `https://figma.com/...`, `https://www.figma.com/...` 또는 `figma://...`의 `design`, `file`, `proto`, `board`, `slides` 경로를 지원합니다. 실행 파일 경로, 외부 사이트, plugin 실행 URL은 받지 않습니다.
+설정 유무나 URL 유효성에 관계없이 Desktop 실행을 먼저 시도합니다. 설치를 찾지 못하거나 실행에 실패하면 warning을 출력하고 Daily 성공은 유지합니다. Preferred file 형식은 `https://figma.com/...`, `https://www.figma.com/...` 또는 기존 `figma://...`의 `design`, `file`, `proto`, `board`, `slides` 경로를 받습니다. 실행 파일 경로, 외부 사이트, plugin 실행 URL은 받지 않습니다. URL은 앱 실행 명령이나 인자로 전달하지 않습니다.
 
-HTTPS 링크는 원래 URL을 OS 기본 handler로 엽니다. 기본 브라우저가 열릴 수 있으며 Figma의 [Open links in desktop app 설정](https://help.figma.com/hc/en-us/articles/360039824334-Open-links-in-the-desktop-app)을 따릅니다. helper가 URL을 임의로 Desktop 링크로 바꾸지는 않습니다.
+특정 파일 자동 열기는 **best-effort**입니다. 확인한 [Figma 공식 문서](https://help.figma.com/hc/en-us/articles/360039824334-Open-links-in-the-desktop-app)는 브라우저에서 Desktop으로 이동하는 UI/설정을 안내하며, 이번 구현에 사용할 브라우저 없는 CLI 파일 열기 방법은 확인하지 못했습니다. 따라서 현재 hotfix는 파일 자동 열기를 생략하고 설정된 URL이 있으면 warning을 출력합니다. 임의의 private protocol이나 browser fallback은 사용하지 않습니다. Desktop 실행에 성공하면 다음 안내를 출력합니다.
+
+```text
+Figma Desktop opened.
+Open your URINSIGHT file in the desktop app, then run the importer.
+```
+
+Desktop에서 URINSIGHT 파일을 직접 열고 로컬 development plugin을 실행하세요. 특정 파일 자동 open이나 로그인/파일 접근 권한을 보장하지 않습니다.
 
 ## Windows 실행 방식
 
 - `explorer.exe`에 processed 날짜 폴더를 인자로 전달합니다. `Test-Path -LiteralPath`로 폴더 존재를 먼저 확인합니다.
-- Figma 링크는 PowerShell `Start-Process -FilePath`로 Windows URL handler에 전달합니다. Desktop protocol은 등록 여부를 먼저 확인합니다.
+- 등록된 `figma` protocol의 registry command 및 사용자/시스템 `App Paths\Figma.exe`에서 존재하는 `Figma.exe` 절대경로만 추출합니다. Registry의 전체 command와 인자는 실행하지 않습니다.
+- 등록 정보가 없거나 유효하지 않으면 `LOCALAPPDATA\Figma\Figma.exe`, 다음으로 `LOCALAPPDATA\Figma\app-<version>\Figma.exe`를 버전 내림차순으로 확인합니다. 특정 사용자 절대경로를 하드코딩하지 않습니다.
+- 탐지한 실행 파일만 PowerShell `Start-Process -FilePath`로 직접 실행합니다. URL handler 호출과 browser fallback은 없습니다. 이 위치들에서 찾을 수 없는 별도 설치 방식은 미탐지 warning이 발생할 수 있습니다.
 - Node `execFile`은 `shell: false`, `windowsHide: true`, `timeout: 10000`으로 짧은 PowerShell launcher를 실행합니다. 사용자가 요청한 Explorer/Figma 창은 표시하고 launcher의 콘솔 창만 숨깁니다.
-- PowerShell script는 고정된 UTF-16LE encoded command이며 경로/URL은 자식 프로세스 환경변수로만 전달합니다. 명령 소스에 사용자 값을 보간하지 않습니다. 한글·공백·`&`·따옴표 중 Windows 경로에 허용되는 문자가 명령으로 실행되지 않습니다.
+- PowerShell script는 고정된 UTF-16LE encoded command이며 Explorer 경로는 자식 프로세스 환경변수로만 전달합니다. 명령 소스에 사용자 값을 보간하지 않습니다. 한글·공백·`&`·따옴표 중 Windows 경로에 허용되는 문자가 명령으로 실행되지 않습니다.
 
 참고: [Node execFile](https://nodejs.org/api/child_process.html#child_processexecfilefile-args-options-callback), [PowerShell Start-Process](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/start-process).
 
 ## 검증과 범위
 
-`tests/daily-figma.test.ts`는 조건별 open 횟수·반환 날짜·인자 재사용·warning 처리를 검증합니다. 실제 PowerShell bridge 테스트에서는 앱 실행 함수를 대체해 Unicode/특수문자의 원형 보존을 확인합니다. 실제 Daily 통합 테스트는 OS 임시 디렉터리에 package를 생성하고 PNG/contact-sheet 및 processed 이동 이후에만 handoff가 발생하는지 확인합니다. 테스트는 사용자 Explorer/Figma를 열지 않습니다.
+`tests/daily-figma.test.ts`는 조건별 open 횟수·반환 날짜·인자 재사용·warning 처리를 검증합니다. 실제 PowerShell bridge 테스트에서는 registry/파일 탐지와 앱 실행 함수를 대체해 Desktop 탐지 순서, 버전 비교, 미설치/실행 실패, Unicode/특수문자의 원형 보존을 확인합니다. HTTPS preferred file이 있어도 URL을 실행하지 않는지 확인합니다. 실제 Daily 통합 테스트는 OS 임시 디렉터리에 package를 생성하고 PNG/contact-sheet 및 processed 이동 이후에만 handoff가 발생하는지 확인합니다. 자동 테스트는 사용자 Explorer/Figma를 열지 않습니다.
 
 ```powershell
 pnpm typecheck

@@ -52,20 +52,25 @@ test('handoff: canonical parser/runner invoked once, returned date used, multipl
   assert.equal(runs, 1); assert.equal(actual, result);
   assert.deepEqual(opens, [
     { kind: 'explorer', target: path.resolve(root, 'processed', result.date) },
-    { kind: 'figma', target: 'figma://' },
+    { kind: 'figma-app' },
   ]);
 });
 
-test('handoff: configured Figma URL is passed exactly and blank config attempts Desktop', async () => {
-  for (const url of ['https://www.figma.com/design/example/URINSIGHT?node-id=1-2&mode=design', 'figma://design/example/URINSIGHT', '   ']) {
-    const opens: OpenTarget[] = [];
-    await runDailyFigma({ root, figmaFileUrl: url, log: quiet }, { daily: async () => success(), open: async target => { opens.push(target); } });
-    assert.equal(opens[1].target, url.trim() || 'figma://');
+test('handoff: preferred file cannot open a browser; unavailable file opening warns after Desktop launch without failing Daily', async () => {
+  for (const url of ['https://www.figma.com/design/example/URINSIGHT?node-id=1-2&mode=design', 'figma://design/example/URINSIGHT', 'file:///bad.exe', '   ']) {
+    const opens: OpenTarget[] = [], warnings: string[] = [], logs: string[] = [];
+    const actual = await runDailyFigma({ root, figmaFileUrl: url, log: message => logs.push(message), warn: message => {
+      assert.equal(opens[1].kind, 'figma-app'); warnings.push(message);
+    } }, { daily: async () => success(), open: async target => { opens.push(target); } });
+    assert.deepEqual(opens, [{ kind: 'explorer', target: path.resolve(root, 'processed', actual.date) }, { kind: 'figma-app' }]);
+    assert.equal(actual.failed, 0);
+    assert.equal(warnings.length, url.trim() ? 1 : 0);
+    assert.ok(logs.some(message => message.includes('Figma Desktop opened.')));
   }
 });
 
 test('handoff: either or both open failures only warn; Explorer failure still attempts Figma', async () => {
-  for (const failedKind of ['explorer', 'figma', 'both']) {
+  for (const failedKind of ['explorer', 'figma-app', 'both']) {
     const result = success(), warnings: string[] = [], opens: OpenTarget[] = [];
     const actual = await runDailyFigma({ root, log: quiet, warn: message => warnings.push(message) }, {
       daily: async () => result,
@@ -80,8 +85,7 @@ test('handoff: either or both open failures only warn; Explorer failure still at
 test('Windows launcher: constant script, separate environment data, hidden bounded launcher and no cmd shell', async () => {
   const targets: OpenTarget[] = [
     { kind: 'explorer', target: "C:\\한글 작업 & 자료\\O'Brien $(ignored); `name`\\processed\\2026-09-20" },
-    { kind: 'figma', target: 'https://www.figma.com/design/key/한글?node-id=1-2&mode=design' },
-    { kind: 'figma', target: 'figma://' },
+    { kind: 'figma-app' },
   ];
   const requests: LaunchRequest[] = [];
   for (const target of targets) await openWindowsTarget(target, { platform: 'win32', env: {}, execute: async request => { requests.push(request); } });
@@ -90,8 +94,9 @@ test('Windows launcher: constant script, separate environment data, hidden bound
     assert.equal(request.options.windowsHide, true); assert.equal(request.options.timeout, 10000);
     assert.equal(request.args.at(-1), requests[0].args.at(-1));
     const script = Buffer.from(request.args.at(-1)!, 'base64').toString('utf16le');
-    assert.ok(!script.includes(targets[i].target));
-    assert.equal(request.options.env.URINSIGHT_HANDOFF_TARGET, targets[i].target);
+    const target = targets[i];
+    if (target.kind === 'explorer') assert.ok(!script.includes(target.target));
+    assert.equal(request.options.env.URINSIGHT_HANDOFF_TARGET, target.kind === 'explorer' ? target.target : '');
     assert.equal(request.options.env.URINSIGHT_HANDOFF_KIND, targets[i].kind);
   });
 });
@@ -102,10 +107,10 @@ test('Windows launcher: invalid URL/path and non-Windows hosts cannot launch app
   }
   let called = false;
   const execute = async () => { called = true; };
-  await assert.rejects(openWindowsTarget({ kind: 'figma', target: 'figma://' }, { platform: 'linux', execute }), /Windows only/);
+  await assert.rejects(openWindowsTarget({ kind: 'figma-app' }, { platform: 'linux', execute }), /Windows only/);
   await assert.rejects(openWindowsTarget({ kind: 'explorer', target: 'relative/path' }, { platform: 'win32', execute }), /absolute Windows/);
   assert.equal(called, false);
-  await assert.rejects(openWindowsTarget({ kind: 'figma', target: 'figma://' }, { platform: 'win32', execute: async () => { throw new Error('ENOENT'); } }), /ENOENT/);
+  await assert.rejects(openWindowsTarget({ kind: 'figma-app' }, { platform: 'win32', execute: async () => { throw new Error('ENOENT'); } }), /ENOENT/);
 });
 
 test('PowerShell bridge preserves Korean, spaces and metacharacters without interpreting target data', { skip: process.platform !== 'win32' }, async () => {
@@ -123,6 +128,83 @@ function Start-Process { param($FilePath, $ArgumentList) @{ file = $FilePath; ar
       assert.equal(actual.args, `"${target}"`);
     },
   });
+});
+
+test('Desktop discovery launches only Figma.exe from registry, LOCALAPPDATA or newest installed version', { skip: process.platform !== 'win32' }, async () => {
+  const local = 'C:\\한글 앱 & 자료';
+  const registered = "C:\\등록 앱 O'Brien\\Figma.exe";
+  const installed = path.win32.join(local, 'Figma', 'Figma.exe');
+  const newest = path.win32.join(local, 'Figma', 'app-126.10.0', 'Figma.exe');
+  const capture = `
+function Get-Item {
+  param($LiteralPath)
+  if ($env:TEST_COMMAND -and $LiteralPath -like '*figma\\shell*') {
+    $item = [pscustomobject]@{ Command = $env:TEST_COMMAND }
+    $item | Add-Member -MemberType ScriptMethod -Name GetValue -Value { param($name) $this.Command }
+    return $item
+  }
+}
+function Get-ChildItem {
+  param($LiteralPath, [switch]$Directory)
+  foreach ($name in @('app-126.9.0', 'app-126.10.0')) {
+    [pscustomobject]@{ Name = $name; FullName = (Join-Path $LiteralPath $name) }
+  }
+}
+function Test-Path {
+  param($LiteralPath, $PathType)
+  return $LiteralPath -eq $env:TEST_EXISTING -or ($env:TEST_VERSIONS -and $LiteralPath -like '*app-*\\Figma.exe')
+}
+function Start-Process { param($FilePath, $ArgumentList) @{ file = $FilePath; args = $ArgumentList } | ConvertTo-Json -Compress }
+`;
+  for (const [command, existing, versions] of [
+    [`"${registered}" "%1" --ignored`, registered, ''],
+    ['', installed, ''],
+    ['"C:\\Windows\\System32\\cmd.exe" /c bad', installed, ''],
+    ['"C:\\stale\\Figma.exe" "%1"', installed, ''],
+    ['', newest, 'yes'],
+  ]) {
+    await openWindowsTarget({ kind: 'figma-app' }, { execute: async request => {
+      const script = '[Console]::OutputEncoding = [Text.Encoding]::UTF8\n' + capture + Buffer.from(request.args.at(-1)!, 'base64').toString('utf16le');
+      const { stdout } = await promisify(execFile)(request.file, [...request.args.slice(0, -1), Buffer.from(script, 'utf16le').toString('base64')], {
+        ...request.options, env: { ...request.options.env, LOCALAPPDATA: local, TEST_COMMAND: command, TEST_EXISTING: existing, TEST_VERSIONS: versions },
+      });
+      const actual = JSON.parse(stdout.replace(/^\uFEFF/, ''));
+      assert.equal(actual.file, existing);
+      assert.equal(actual.args, null);
+    } });
+  }
+});
+
+test('Desktop not installed or launch fails: warning and Daily success, never browser fallback', { skip: process.platform !== 'win32' }, async () => {
+  for (const installed of [false, true]) {
+    const warnings: string[] = [], logs: string[] = [], opens: OpenTarget[] = [];
+    const actual = await runDailyFigma({ root, figmaFileUrl: 'https://www.figma.com/design/key/URINSIGHT', log: message => logs.push(message), warn: message => warnings.push(message) }, {
+      daily: async () => success(),
+      open: async target => {
+        opens.push(target);
+        if (target.kind === 'explorer') return;
+        await openWindowsTarget(target, { execute: async request => {
+          const capture = `
+function Get-Item { param($LiteralPath) }
+function Get-ChildItem { param($LiteralPath, [switch]$Directory) }
+function Test-Path { param($LiteralPath, $PathType) return $${installed} }
+function Start-Process { param($FilePath) throw 'Desktop launch denied' }
+`;
+          const script = capture + Buffer.from(request.args.at(-1)!, 'base64').toString('utf16le');
+          try {
+            await promisify(execFile)(request.file, [...request.args.slice(0, -1), Buffer.from(script, 'utf16le').toString('base64')], { ...request.options, env: { ...request.options.env, LOCALAPPDATA: 'C:\\한글 앱' } });
+          } catch (error) {
+            throw new Error((error as { stderr: string }).stderr);
+          }
+        } });
+      },
+    });
+    assert.equal(actual.failed, 0);
+    assert.equal(opens.length, 2);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], installed ? /Desktop launch denied/ : /installation not found/);
+    assert.ok(!logs.some(message => message.includes('Figma Desktop opened.')));
+  }
 });
 
 test('real Daily integration: PNG/contact-sheet and processed move finish before a single handoff', async () => {
@@ -147,7 +229,7 @@ test('real Daily integration: PNG/contact-sheet and processed move finish before
     });
     assert.deepEqual(warnings, []);
     assert.equal(result.failed, 0); assert.equal(result.results[0].status, 'success');
-    assert.deepEqual(opens, [{ kind: 'explorer', target: path.resolve(temp, 'processed', result.date) }, { kind: 'figma', target: 'figma://' }]);
+    assert.deepEqual(opens, [{ kind: 'explorer', target: path.resolve(temp, 'processed', result.date) }, { kind: 'figma-app' }]);
   } finally {
     assert.equal(path.dirname(temp), path.resolve(tmpdir()));
     assert.ok(path.basename(temp).startsWith('urinsight-handoff-'));
