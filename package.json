@@ -9,6 +9,7 @@
   },
   "scripts": {
     "daily": "tsx src/cli/daily.ts",
+    "daily:figma": "tsx src/cli/daily-figma.ts",
     "generate": "tsx src/cli/generate.ts",
     "compare": "tsx src/cli/compare.ts",
     "typecheck": "tsc --noEmit",
