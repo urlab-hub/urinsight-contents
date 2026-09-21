@@ -145,7 +145,7 @@ Daily의 `designTokens(true)`와 coverOverlay, 기존 contentSchema를 읽기 �
 
 Plugin 실행 코드는 외부 API/Figma MCP/ChatGPT API, OS 경로 접근, 파일 쓰기, 게시, JSON sync를 사용하지 않습니다. manifest의 networkAccess는 `none`입니다. 최초 개발 의존성 설치에는 네트워크가 필요하며, Figma 문서 자체의 저장/동기화는 Figma 앱 동작을 따릅니다.
 
-초기 구현에서는 Figma Desktop을 확인하지 못했습니다. 이후 runtime hotfix 검증에서는 **실제 Figma Desktop에서 plugin UI가 parser error 없이 열리는 것을 확인**했습니다. 실제 canvas·폰트 가용성·마우스 편집성 검증은 아래 acceptance checklist에 남아 있습니다. mock 테스트 성공을 실제 Figma 시각 검증으로 해석하지 마세요.
+**v1 editable workflow Desktop acceptance 완료 (2026-09-21, 사용자 확인).** 실제 package import, 8개 frame 생성과 텍스트·줄바꿈·highlight·이미지·overlay 편집을 확인했습니다. 체크포인트 tag는 `urinsight-figma-importer-v1.0.0`이며, 검증 출처와 범위는 [VALIDATION.md](VALIDATION.md)에 기록했습니다.
 
 ## 9. 개발 검증
 
@@ -176,16 +176,22 @@ Figma API contract mock은 노드 구조·속성·폰트 오류·재import·실�
 
 ### 실제 Figma Desktop acceptance checklist
 
-- [x] local manifest 등록 및 plugin UI 실행 (runtime hotfix에서 실제 Desktop 확인)
-- [ ] 실제 사업 package로 8개 frame, 1080×1350, COVER/BODY 5/SUMMARY/INSIGHT 순서 확인
-- [ ] category #3B5BDB, Pretendard Regular/Bold, Spec 1.10 typography/anchors 확인
-- [ ] cover/insight 이미지 표시, 각각 45%/65% overlay 확인
-- [ ] 모든 문자가 TextNode이고 highlight Rectangle이 별도 레이어임을 확인
-- [ ] 제목 줄바꿈·문단·font size·line height·letter spacing·텍스트 위치 직접 수정
-- [ ] highlight Rectangle resize·위치·색상과 category 색상 수정
-- [ ] image crop/position, overlay opacity 직접 수정
-- [ ] 같은 package 재import 후 기존 수동 수정이 유지되는지 확인
-- [ ] 페이지별 PNG export와 실제 시각 품질 확인
+사용자가 실제 Figma Desktop에서 완료했다고 확인한 항목:
+
+- [x] plugin UI 실행
+- [x] 실제 package import 및 8개 frame 생성
+- [x] TextNode 편집
+- [x] 줄바꿈 수정
+- [x] highlight Rectangle 수정
+- [x] image crop/position 수정
+- [x] overlay opacity 수정
+- [x] 실제 editable workflow 정상 확인
+
+추가 검증 항목 (이번 Desktop 완료 보고 범위 밖):
+
+- [ ] 1080×1350, 페이지 순서, category #3B5BDB, Pretendard Regular/Bold, Spec 1.10 typography/anchors 및 45%/65% overlay 수치 실측
+- [ ] 같은 package 재import 후 기존 수동 수정 유지 확인
+- [ ] 페이지별 PNG export와 실제 시각 품질 비교
 
 검증 실행 기록: [VALIDATION.md](VALIDATION.md).
 

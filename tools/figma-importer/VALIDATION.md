@@ -1,6 +1,7 @@
 # URINSIGHT Figma Importer v1 — 검증 기록
 
-검증일: 2026-09-20 (Asia/Seoul)
+초기 검증일: 2026-09-20 (Asia/Seoul)
+Desktop acceptance 완료 기록일: 2026-09-21 (Asia/Seoul)
 
 - Branch: `feature/figma-importer-v1`
 - Starting HEAD: `3c62f011454d1df4aa128b9a686afb0fb8ec89cf` (`main`)
@@ -30,7 +31,7 @@ pnpm은 이 환경에서 업데이트 확인용 registry 접근 경고를 출력
 
 `tests/fixtures/business.json`은 이 실제 원고의 사본입니다. 일반 테스트는 생성된 PNG를 메모리에서 사용합니다. 사진은 신규 commit에 포함하지 않습니다. Playwright의 폴더 선택 테스트도 실제 package 경로로 실행했습니다.
 
-## Acceptance coverage
+## 초기 자동 검증의 acceptance coverage (2026-09-20)
 
 | 요구사항 | 검증 수준 |
 | --- | --- |
@@ -49,13 +50,13 @@ pnpm은 이 환경에서 업데이트 확인용 registry 접근 경고를 출력
 
 UI screenshot은 테스트 실행 시 `artifacts/ui-imported.png`에 생성됩니다(Git 제외). 이 화면은 mock controller 결과이며 실제 Figma canvas screenshot이 아닙니다.
 
-## 남은 실제 Figma 검증과 한계
+## 초기 실제 Figma 검증 제한과 알려진 한계
 
-초기 v1 구현 시점에는 Computer Use의 설치 앱 목록, 실행 프로세스와 Figma 기본 설치 경로에서 Figma Desktop을 찾지 못했습니다. 당시 local plugin 등록, 실제 Pretendard font load, canvas paint, 텍스트 편집·highlight resize·이미지 crop 핸들 조작, PNG export와 시각 비교는 수행하지 못했습니다. 아래 runtime hotfix에서 UI 실행을 추가 확인했으며, 나머지는 [README의 실제 Figma checklist](README.md#실제-figma-desktop-acceptance-checklist)에 남아 있습니다. 자동 검증 통과를 전체 실제 Figma acceptance 통과로 표시하지 않습니다.
+초기 v1 구현 시점에는 Figma Desktop을 찾지 못해 실제 canvas import와 편집을 검증하지 못했습니다. 아래 runtime hotfix에서 UI 실행을 확인했고, 이후 사용자가 실제 Desktop에서 package import와 편집 workflow를 완료했습니다. 현재 완료 범위와 증거 출처는 아래 Desktop acceptance 기록을 따릅니다. 위 표의 미검증 표시는 초기 자동 검증 시점의 범위입니다.
 
 Highlight는 Figma text advance와 font size 기반의 편집 가능한 초기 근사치입니다. 브라우저 renderer의 glyph ink bounds 및 keep-all wrapping과 픽셀 단위 일치를 보장하지 않습니다. 텍스트 수정 후 배경 Rectangle/형제 줄의 위치를 자동 동기화하지 않습니다. 길이가 넘치는 원고는 폰트/anchor를 자동 변경하지 않고 경고와 함께 import합니다.
 
-개발 구현/build/자동 검증은 완료했지만 실제 Figma acceptance가 남아 있으므로 전체 acceptance 기준 상태는 **미완료**입니다.
+현재 v1 editable workflow의 실제 Figma Desktop acceptance는 **완료**입니다(아래 사용자 확인 기록 참조). 알려진 편집 동작의 한계는 그대로 유지됩니다.
 
 ## Actual Figma Runtime Hotfix — 2026-09-20
 
@@ -82,3 +83,38 @@ Highlight는 Figma text advance와 font size 기반의 편집 가능한 초기 �
 - UI bundle 및 `src/`의 layer/schema/token 코드는 그대로입니다. Root package/lock, Daily Runner, renderer, production schema 변경 없음.
 
 `dist/`는 기존 정책대로 Git 제외 생성물입니다. 다른 checkout에서는 plugin 의존성 설치 후 build가 필요합니다.
+
+## 실제 Figma Desktop acceptance 완료 — 2026-09-21
+
+- Branch: `feature/figma-importer-v1`
+- Before SHA: `2e6d4765f10834ceb2af907719634a010063fe7f`
+- Checkpoint tag: `urinsight-figma-importer-v1.0.0`
+- 증거 출처: 사용자가 실제 Figma Desktop 검증 완료 결과를 보고했습니다. 이번 체크포인트 작업에서 에이전트가 Desktop 조작을 재실행한 것은 아닙니다.
+
+| 실제 Desktop acceptance 항목 | 결과 |
+| --- | --- |
+| Plugin UI 실행 | PASS — 사용자 확인 |
+| 실제 package import | PASS — 사용자 확인 |
+| 8개 frame 생성 | PASS — 사용자 확인 |
+| TextNode 편집 | PASS — 사용자 확인 |
+| 줄바꿈 수정 | PASS — 사용자 확인 |
+| Highlight Rectangle 수정 | PASS — 사용자 확인 |
+| Image crop/position 수정 | PASS — 사용자 확인 |
+| Overlay opacity 수정 | PASS — 사용자 확인 |
+| 실제 editable workflow | PASS — 사용자 확인 |
+
+**Figma Importer v1 editable workflow acceptance: 완료.** PNG export/시각 비교, Desktop 재import 시 수동 수정 보존, 세부 typography/anchor/색상/크기 수치의 별도 실측은 이번 사용자 완료 보고에 포함되지 않았습니다. 해당 항목을 추가 검증 완료로 표시하지 않습니다.
+
+이번 체크포인트는 `VALIDATION.md`와 plugin `README.md`의 상태 기록만 갱신합니다. 기존 Daily Runner / renderer / schema 및 plugin 구현 변경은 없으며, `daily:figma` helper 작업은 시작하지 않았습니다.
+
+### 체크포인트 자동 검증 재실행 — 2026-09-21
+
+| 명령 | 결과 |
+| --- | --- |
+| `pnpm typecheck` | PASS |
+| `pnpm test` | 62/62 PASS, fail 0, skip 0 |
+| `npm --prefix tools/figma-importer run typecheck` | PASS |
+| `npm --prefix tools/figma-importer run build` | PASS, offline code.js + ui.html |
+| `npm --prefix tools/figma-importer test` | 15/15 PASS, fail 0, skip 0; 실제 package 포함 |
+
+실제 package 테스트에는 `URINSIGHT_FIGMA_TEST_PACKAGE=processed/2026-09-20/ai-workflow-redesign`의 절대 경로를 지정했습니다. 원본 package bytes 보존 검사와 built UI 폴더 선택 테스트도 통과했습니다. MAIN ES2015 audit의 import expressions / import.meta / module declarations / dynamic code generation references / comments는 모두 0입니다. Root에는 build script가 없으므로 build 검증은 plugin의 build script로 수행했습니다. `dist/`와 UI screenshot은 기존 정책대로 Git 제외 생성물입니다.
