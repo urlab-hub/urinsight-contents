@@ -1,6 +1,6 @@
 # URINSIGHT 일상 운영
 
-평소에는 Codex를 실행할 필요가 없다. ChatGPT에서 받은 package를 넣고 PowerShell에서 `pnpm daily`를 실행한다. PNG를 검수한 뒤 Instagram에는 직접 업로드한다.
+평소에는 Codex를 실행할 필요가 없다. ChatGPT에서 받은 package를 넣고 PowerShell에서 `npm.cmd run daily`를 실행한다. 사용자가 output의 PNG/contact-sheet를 확인하며, 수정이 필요한 콘텐츠만 아래 Figma 수동 보정 절차를 따른다. Instagram에는 직접 업로드한다.
 
 ## 매일 하는 일
 
@@ -14,21 +14,27 @@
 cd "C:\Users\Jungsoo Bae\Documents\ChatGPT\URINSIGHT_콘텐츠\urinsight-contents"
 ```
 
-6. 먼저 dry-run으로 입력을 확인한다.
+6. 실제 이미지를 생성한다.
 
 ```powershell
-pnpm daily -- --dry-run
+npm.cmd run daily
 ```
 
-7. 실제 이미지를 생성한다.
+7. `output\YYYY-MM-DD\<slug>\`에서 PNG와 contact-sheet.png를 확인한다. 날짜는 실행 시작 시 한국 날짜다.
+8. 완료 입력은 `processed\YYYY-MM-DD\<package-name>\`에서 확인한다.
+9. 오류 package는 inbox에 그대로 있다. 안내에 따라 수정하고 다시 실행한다. 다른 정상 package는 계속 처리된다. 실패가 하나라도 있으면 command exit code는 1이다.
 
-```powershell
-pnpm daily
-```
+## 수정이 필요할 때만: Figma 수동 보정
 
-8. `output\YYYY-MM-DD\<slug>\`에서 PNG와 contact-sheet.png를 확인한다. 날짜는 실행 시작 시 한국 날짜다.
-9. 완료 입력은 `processed\YYYY-MM-DD\<package-name>\`에서 확인한다.
-10. 오류 package는 inbox에 그대로 있다. 안내에 따라 수정하고 다시 실행한다. 다른 정상 package는 계속 처리된다. 실패가 하나라도 있으면 command exit code는 1이다.
+1. 사용자가 processed에서 수정할 콘텐츠의 원본 package를 확인한다.
+2. Figma Desktop을 직접 실행하고 편집할 Figma Design 파일을 연다.
+3. 로컬 development plugin인 **URINSIGHT Figma Editable Importer v1**을 실행한다.
+4. 해당 package의 `carousel.json` + `cover.png` + `insight.png`를 선택해 editable layer로 import한다.
+5. 줄바꿈, 강조배경, 이미지 위치 등을 수동 보정하고 Figma에서 최종 PNG를 export한다.
+
+Daily Runner는 자동 완성본 생성, Figma Importer는 검수 후 필요한 콘텐츠의 수동 보정에 사용한다. 원본 JSON은 canonical source이며 Figma에서 수정해도 inbox/output/processed나 JSON에 자동으로 다시 쓰지 않는다. Plugin 등록·편집·export 절차와 PNG pair 요구사항은 [Importer README](../tools/figma-importer/README.md)를 참고한다.
+
+자동으로 열리는 항목은 없다. Figma Desktop, Explorer/processed 폴더, 브라우저는 사용자가 필요할 때 직접 연다. 실제 운영 명령은 `npm.cmd run daily` 하나다. `daily:figma` / `daily:review`와 자동 handoff는 사용하지 않는다. `feature/daily-figma-handoff`는 main에 반영하지 않은 실험 기록으로 보존한다.
 
 ## Package 형식
 
@@ -51,7 +57,7 @@ AI 이미지 pair는 Cover를 먼저 만든 뒤 그 이미지를 visual referenc
 특정 package만 처리하려면:
 
 ```powershell
-pnpm daily -- --only URINSIGHT_20260917_ai-judgment
+npm.cmd run daily -- --only URINSIGHT_20260917_ai-judgment
 ```
 
 없는 이름, 잘못된 옵션, 경로 이동 문자열은 오류다. 명령은 프로젝트 루트에서 실행한다. 운영 루트는 현재 작업 폴더다.
@@ -121,11 +127,11 @@ package에 cover와 같은 사진 시리즈처럼 보이는 `insight.png`를 추
 
 manifest.insight.status는 provided / cover-fallback / placeholder-fallback 중 하나다. source는 읽은 원본 경로이며, package 이동 전 경로를 provenance로 기록한다. 원본 insight 파일은 processed에 보존한다. output에는 원본 이미지를 별도 복사하지 않는다.
 
-`pnpm daily -- --dry-run`도 insight 탐색·decode·fallback 상태를 확인한다. 기존 `pnpm generate <carousel.json>`은 optional runtime insightImage가 없으므로 종전 v6 dark INSIGHT 결과를 유지한다. 자동 사진 검색/생성이나 외부 API 호출은 하지 않는다.
+`npm.cmd run daily -- --dry-run`도 insight 탐색·decode·fallback 상태를 확인한다. 기존 `pnpm generate <carousel.json>`은 optional runtime insightImage가 없으므로 종전 v6 dark INSIGHT 결과를 유지한다. 자동 사진 검색/생성이나 외부 API 호출은 하지 않는다.
 
 ## Specification 1.4: 고정된 본문 프레임
 
-`pnpm daily`는 BODY와 SUMMARY의 상단 위치, 마지막 강조문장 하단(Y=1103)을 고정한다. 본문 분량이 달라도 강조문장은 아래에 정렬된다. 1~2줄 강조문장 위의 공간에 원고를 맞춘다.
+`npm.cmd run daily`는 BODY와 SUMMARY의 상단 위치, 마지막 강조문장 하단(Y=1103)을 고정한다. 본문 분량이 달라도 강조문장은 아래에 정렬된다. 1~2줄 강조문장 위의 공간에 원고를 맞춘다.
 
 `BODY_CONTENT_OVERFLOW` 또는 `SUMMARY_CONTENT_OVERFLOW`가 나오면 오류의 page/region/currentHeight/allowedHeight를 확인하고 해당 원고를 줄인다. 중복 제거, 문장 간결화, 3문단을 2문단으로 압축하는 순서로 편집한다. 폰트를 줄이거나 마지막 문장을 아래로 밀지 않는다. 오류 package는 inbox에 남는다.
 

@@ -3,6 +3,20 @@
 구조화된 JSON → React HTML/CSS → Playwright Chromium → 1080 × 1350 PNG.
 뉴스 수집, 이미지 생성/검색, Instagram 게시 기능은 포함하지 않습니다.
 
+## 실제 운영
+
+INBOX package를 넣고 repository 루트에서 다음 명령을 실행합니다.
+
+```powershell
+npm.cmd run daily
+```
+
+Daily Runner가 완성 PNG/contact-sheet를 생성하면 사용자가 `output`에서 결과를 확인합니다. 성공한 원본 package는 기존대로 `processed`에 보존됩니다.
+
+수정이 필요한 콘텐츠만 사용자가 **Figma Desktop을 직접 실행**하고, [URINSIGHT Figma Editable Importer v1](tools/figma-importer/README.md)에서 processed의 `carousel.json` + `cover.png` + `insight.png`를 선택합니다. 줄바꿈·강조배경·이미지 위치 등을 수동 보정한 뒤 Figma에서 최종 PNG를 export합니다. Figma 수정 내용은 원본 JSON에 자동 반영되지 않습니다.
+
+Figma·Explorer·브라우저를 자동으로 열지 않습니다. 실제 운영 명령은 `npm.cmd run daily` 하나이며 `daily:figma` / `daily:review`는 사용하지 않습니다. 자세한 절차는 [일상 운영 문서](docs/DAILY_WORKFLOW.md)를 따릅니다.
+
 ## 시작
 
 Node.js 22 이상, pnpm 11.19.0 기준입니다.
